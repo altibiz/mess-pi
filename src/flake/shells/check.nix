@@ -34,5 +34,7 @@ pkgs.mkShell {
     just
     pkg-config
     openssl
+    zip
+    unzip
   ];
 }

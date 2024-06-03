@@ -63,7 +63,10 @@
         in
         outputs // {
           packages = (outputs.packages or { }) // {
-            ${system}.default = (import ./src/flake/cli.nix) inputs;
+            ${system} = {
+              default = (import ./src/flake/cli.nix) inputs;
+              docker = (import ./src/flake/docker.nix) inputs;
+            };
           };
 
           devShells = (outputs.devShells or { }) // {

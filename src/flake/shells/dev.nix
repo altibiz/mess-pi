@@ -5,10 +5,9 @@ pkgs.mkShell {
 
   DATABASE_URL = "postgres://pidgeon:pidgeon@localhost:5433/pidgeon?sslmode=disable";
 
-  # PIDGEON_CLOUD_SSL = "1";
-  # PIDGEON_CLOUD_DOMAIN = "localhost:5001";
-  # PIDGEON_CLOUD_API_KEY = "pidgeon";
-  # PIDGEON_CLOUD_ID = "pidgeon";
+  PIDGEON_CLOUD_DOMAIN = "localhost:5000";
+  PIDGEON_CLOUD_API_KEY = "messenger";
+  PIDGEON_CLOUD_ID = "messenger";
 
   PIDGEON_DB_DOMAIN = "localhost";
   PIDGEON_DB_PORT = "5433";
@@ -16,8 +15,8 @@ pkgs.mkShell {
   PIDGEON_DB_PASSWORD = "pidgeon";
   PIDGEON_DB_NAME = "pidgeon";
 
-  # PIDGEON_NETWORK_IP_RANGE_START = "192.168.1.0";
-  # PIDGEON_NETWORK_IP_RANGE_END = "192.168.1.255";
+  PIDGEON_NETWORK_IP_RANGE_START = "192.168.1.0";
+  PIDGEON_NETWORK_IP_RANGE_END = "192.168.1.255";
 
   packages = with pkgs; [
     # Nix
@@ -77,5 +76,7 @@ pkgs.mkShell {
     sqlx-cli
     jq
     sops
+    zip
+    unzip
   ];
 }

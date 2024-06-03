@@ -43,6 +43,10 @@ development:
 
 - **mdbook**: mdbook is used for building the documentation.
 
+### Stress testing
+
+- **GNS3**: GNS3 is used to simulated networks.
+
 ## Development Workflow
 
 The development workflow is managed by `just`, a command runner that's similar
