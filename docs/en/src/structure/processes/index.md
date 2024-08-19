@@ -1,0 +1,114 @@
+# Processes
+
+The application starts processes after setting up logging, configuration and
+services.
+
+Processes are started by the process container using a job scheduler which
+determines when they are started with cron expressions which can be configured.
+
+When the application receives SIGINT or Ctrl+C on the keyboard it shuts down all
+the processes gracefully with a timeout of 60 seconds before exiting the main
+function.
+
+The poll, update and health processes are not documented because there is still
+work to be done on the server before they become fully functional.
+
+## Discover
+
+The discover process uses the network service and modbus services to detect all
+modbus devices on the network and save their information using the database
+service.
+
+After scanning the network for modbus devices it tries to match those devices
+with known device types. This is accomplished via matching configurable
+registers with specified strings or regular expressions.
+
+After device matching, the process consolidates matched devices and their types
+in the database. Consolidation is done by retrieving known devices via the
+database service and either modifying the new destination of known devices that
+are matched via configurable identification registers or by adding new devices.
+
+## Ping
+
+The ping process checks the health of all known devices using the database and
+modbus services.
+
+After retrieving the list of all known devices via the database service it pings
+them. Pinging is done by trying to read the device's configurable identification
+register. If the known device id matches the read id the ping was successful.
+
+After pinging the devices get consolidated. Depending on whether or not the ping
+was successful the devices will get consolidated in different ways. If the
+device was successfully pinged it will enter or remain in the healthy state. If
+the device was unsuccessfully pinged it will enter the unreachable state unless
+a configurable threshold has been reached after which the device will enter the
+inactive state. These states are important markers for other services.
+
+After the state of the device is determined it is stored via the database
+service. If the device device was previously unreachable and it entered the
+inactive state, it will be unbound to its destination via the modbus service,
+otherwise it will be bound to its destination via the modbus service.
+
+If the new state of the device is different from its previous state, the state
+will be updated via the database service.
+
+## Daily/Nightly
+
+The daily and nightly processes run at a configurable time of day to change the
+tariff of all known devices.
+
+After retrieving all known devices from the database service it sets the
+configurable configuration and tariff registers via the modbus service. It is
+typical for modbus devices to have a tariff source configuration register that
+needs to be set so that the device reads its tariff from the modbus tariff
+register.
+
+## Measure
+
+The measure process manages modbus device measurement streams created by the
+modbus service. This involves the creation of new streams, collection of
+measurements from existing streams and deletion of old streams. Existing streams
+are part of the state of the measure process.
+
+Firstly, existing stream measurements are collected and verified. Verification
+is done by confirming that the collected identification registers match the
+expected device identification string. This is important in case that a device
+gets swapped with another and especially important if the new device is of a
+different type which could cause errors in the best case, because these errors
+cause exceptions in the modbus protocol, or bad measurement data in the worst
+case which can (not 100% guaranteed) only be detected by the cloud server
+because the Raspberry PI program doesn't know what to expect from these
+registers. It is also important to note that identification registers used for
+verification are always fetched last because if they were fetched first, there
+is a very slight chance that the verification passes with identification
+registers of the old device and measurement registers of the new device which
+would result in bad measurement data.
+
+After measurement collection, the process fetches devices via the database
+service and adjusts measurement streams accordingly. This is done by matching
+measurement stream device identification strings and database device
+identification strings and then creating measurement streams for database
+devices which do not have a matching measurement stream and deleting measurement
+streams for which a matching database device was not found.
+
+## Push
+
+The push process pushes measurements that haven't been pushed to the cloud
+server.
+
+Firstly, the push process fetches the last successful push log via the database
+service to obtain the id of the last pushed measurement. Since the id of
+measurements is an incrementing integer generated by the database this is a
+valid way of fetching measurements that haven't been pushed to the server.
+
+After obtaining the id of the last pushed measurement, the push process tries
+pushing measurements with higher ids up to the configurable count via the cloud
+service. If the push fails the process will try to push half the amount of
+measurements previously tried until the count reaches 1 in which case the
+measurement will be skipped and the count of measurements to push will be
+restored to the limit. This way of pushing is a good initial solution for trying
+to send bad measurements to the cloud server and for allowing the server to
+recover from congestion.
+
+Finally, the push process inserts a successful push log via the database
+service.
