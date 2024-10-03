@@ -20,6 +20,7 @@ pub(crate) struct Db {
 pub(crate) struct Network {
   pub(crate) ip_range_start: String,
   pub(crate) ip_range_end: String,
+  pub(crate) modbus_port: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -36,7 +37,9 @@ pub(crate) enum ParseError {
 }
 
 pub(crate) fn parse() -> Result<Values, ParseError> {
-  let _ = dotenv::dotenv();
+  if let Err(error) = dotenv::dotenv() {
+    tracing::warn!("Failed reading dotenv {error}");
+  }
 
   let values = Values {
     cloud: Cloud {
@@ -56,6 +59,10 @@ pub(crate) fn parse() -> Result<Values, ParseError> {
     network: Network {
       ip_range_start: std::env::var("PIDGEON_NETWORK_IP_RANGE_START")?,
       ip_range_end: std::env::var("PIDGEON_NETWORK_IP_RANGE_END")?,
+      modbus_port: std::env::var("PIDGEON_MODBUS_PORT").map_or_else(
+        |_| 502,
+        |port| port.as_str().parse::<u16>().unwrap_or(502),
+      ),
     },
   };
 

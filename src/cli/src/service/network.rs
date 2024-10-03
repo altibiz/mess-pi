@@ -10,6 +10,7 @@ use crate::*;
 pub(crate) struct Service {
   ip_range: IpAddrRange,
   timeout: std::time::Duration,
+  modbus_port: u16,
 }
 
 impl service::Service for Service {
@@ -19,6 +20,7 @@ impl service::Service for Service {
       timeout: std::time::Duration::from_millis(
         config.network.timeout.num_milliseconds() as u64,
       ),
+      modbus_port: config.network.modbus_port,
     }
   }
 }
@@ -31,7 +33,7 @@ impl Service {
     let ip_scans = self
       .ip_range
       .map(|ip| {
-        let socket_address = to_socket(ip);
+        let socket_address = self.to_socket(ip);
         (
           socket_address,
           tokio::spawn(async move {
@@ -46,18 +48,18 @@ impl Service {
       })
       .collect::<Vec<(SocketAddr, JoinHandle<bool>)>>();
 
+    tracing::trace!("Matching {:?}", self.ip_range);
     for (ip, scan) in ip_scans {
       if let Ok(true) = scan.await {
         matched_ips.push(ip)
       }
     }
-
     tracing::trace!("Found {:?} ips", matched_ips.len());
 
     matched_ips
   }
-}
 
-pub(crate) fn to_socket(ip: IpAddr) -> SocketAddr {
-  SocketAddr::new(ip, 502)
+  pub(crate) fn to_socket(&self, ip: IpAddr) -> SocketAddr {
+    SocketAddr::new(ip, self.modbus_port)
+  }
 }

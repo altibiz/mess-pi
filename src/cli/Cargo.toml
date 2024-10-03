@@ -8,37 +8,37 @@ readme = "README.md"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.75"
-async-trait = "0.1.74"
-chrono = { version = "0.4.26", features = ["serde"] }
+anyhow = "1.0.86"
+async-trait = "0.1.80"
+chrono = { version = "0.4.38", features = ["serde"] }
 chrono-tz = { version = "0.8.6", features = ["serde"] }
-clap = { version = "4.4.0", features = ["derive"] }
-cron = "0.12.0"
+clap = { version = "4.5.7", features = ["derive"] }
+cron = "0.12.1"
 directories = "5.0.1"
 dotenv = "0.15.0"
-either = { version = "1.9.0", features = ["serde"] }
-env_logger = "0.10.0"
+either = { version = "1.13.0", features = ["serde"] }
+env_logger = "0.10.2"
 flume = "0.11.0"
-futures = "0.3.29"
-futures-core = "0.3.29"
+futures = "0.3.30"
+futures-core = "0.3.30"
 futures-time = "3.0.0"
-ipnet = { version = "2.8.0", features = ["serde"] }
+ipnet = { version = "2.9.0", features = ["serde"] }
 itertools = "0.11.0"
-log = { version = "0.4.20", features = ["serde"] }
-regex = "1.9.4"
-reqwest = { version = "0.11.20", features = [
+log = { version = "0.4.21", features = ["serde"] }
+regex = "1.10.5"
+reqwest = { version = "0.11.27", features = [
   "json",
   "rustls",
   "rustls-tls",
   "gzip",
 ] }
-rust_decimal = { version = "1.33.1", features = ["serde", "serde-arbitrary-precision"] }
-rust_decimal_macros = "1.33.1"
-rustls = "0.21.6"
-serde = { version = "1.0.186", features = ["derive"] }
-serde_json = "1.0.105"
-serde_yaml = "0.9.25"
-sqlx = { version = "0.7.1", features = [
+rust_decimal = { version = "1.35.0", features = ["serde", "serde-arbitrary-precision"] }
+rust_decimal_macros = "1.34.2"
+rustls = "0.21.12"
+serde = { version = "1.0.203", features = ["derive"] }
+serde_json = "1.0.118"
+serde_yaml = "0.9.34"
+sqlx = { version = "0.7.4", features = [
   "postgres",
   "runtime-tokio",
   "tls-rustls",
@@ -46,12 +46,12 @@ sqlx = { version = "0.7.1", features = [
   "ipnetwork",
   "json",
 ] }
-thiserror = "1.0.47"
-tokio = { version = "1.32.0", features = ["full"] }
-tokio-cron-scheduler = { version = "0.10.0", features = ["signal"] }
+thiserror = "1.0.61"
+tokio = { version = "1.38.0", features = ["full"] }
+tokio-cron-scheduler = { version = "0.10.2", features = ["signal"] }
 tokio-modbus = { version = "0.9.0", features = ["tcp", "rtu"] }
-tokio-util = { version = "0.7.8", features = ["full"] }
-toml = "0.8.8"
-tracing = "0.1.37"
-tracing-subscriber = { version = "0.3.17", features = ["env-filter"]}
-uuid = { version = "1.5.0", features = ["v4", "fast-rng"] }
+tokio-util = { version = "0.7.11", features = ["full"] }
+toml = "0.8.14"
+tracing = "0.1.40"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"]}
+uuid = { version = "1.9.1", features = ["v4", "fast-rng"] }

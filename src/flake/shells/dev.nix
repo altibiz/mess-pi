@@ -1,14 +1,16 @@
-{ pkgs, ... }:
+{ pkgs, poetry2nix, pidgeonLib, ... }:
 
+let
+  env = poetry2nix.mkPoetryEnv pidgeonLib.poetry.common;
+in
 pkgs.mkShell {
   RUST_SRC_PATH = "${pkgs.rust.packages.stable.rustPlatform.rustLibSrc}";
 
   DATABASE_URL = "postgres://pidgeon:pidgeon@localhost:5433/pidgeon?sslmode=disable";
 
-  # PIDGEON_CLOUD_SSL = "1";
-  # PIDGEON_CLOUD_DOMAIN = "localhost:5001";
-  # PIDGEON_CLOUD_API_KEY = "pidgeon";
-  # PIDGEON_CLOUD_ID = "pidgeon";
+  # PIDGEON_CLOUD_DOMAIN = "localhost:5000";
+  # PIDGEON_CLOUD_API_KEY = "messenger";
+  # PIDGEON_CLOUD_ID = "messenger";
 
   PIDGEON_DB_DOMAIN = "localhost";
   PIDGEON_DB_PORT = "5433";
@@ -20,17 +22,19 @@ pkgs.mkShell {
   # PIDGEON_NETWORK_IP_RANGE_END = "192.168.1.255";
 
   packages = with pkgs; [
+    # Python - first because DVC python gets first in path
+    poetry
+    (pidgeonLib.poetry.mkEnvWrapper env "pyright")
+    (pidgeonLib.poetry.mkEnvWrapper env "pyright-langserver")
+    env
+
+    # Version Control
+    git
+    dvc-with-remotes
+
     # Nix
     nil
     nixpkgs-fmt
-
-    # Python
-    poetry
-    python
-    pyright
-    pyright-langserver
-    yapf
-    ruff
 
     # Rust
     llvmPackages.clangNoLibcxx
@@ -66,10 +70,13 @@ pkgs.mkShell {
     marksman
     taplo
 
-    # Tools
+    # Scripts
     nushell
-    usql
     just
+
+    # Tools
+    usql
+    postgresql_14
     openssh
     age
     pkg-config
@@ -77,5 +84,7 @@ pkgs.mkShell {
     sqlx-cli
     jq
     sops
+    zip
+    unzip
   ];
 }

@@ -1,0 +1,5 @@
+outs:
+- md5: 0ebd18163810ae88415135499d37bd70
+  size: 191409
+  hash: md5
+  path: ozds.sql

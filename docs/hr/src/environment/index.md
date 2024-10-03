@@ -43,6 +43,10 @@ razvoj:
 
 - **mdbook**: mdbook se koristi za izradu dokumentacije u `docs` direktoriju.
 
+### Stress testiranje
+
+- **GNS3**: GNS3 se koristi za simuliranje mreže.
+
 ## Razvojni proces
 
 Razvojni proces upravlja se pomoću `just`, upravitelja naredbama sličnog `make`.

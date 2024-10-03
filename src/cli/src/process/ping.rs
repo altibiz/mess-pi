@@ -184,7 +184,10 @@ impl Process {
         .bind(
           device.id.clone(),
           modbus::Destination {
-            address: network::to_socket(db::to_address(device.address)),
+            address: self
+              .services
+              .network()
+              .to_socket(db::to_address(device.address)),
             slave: db::to_slave(device.slave),
           },
         )

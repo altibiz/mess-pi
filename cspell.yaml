@@ -16,6 +16,8 @@ ignorePaths:
   # TODO: hr language
   - "docs/hr/**/*"
   - "docs/index.html"
+  - "test/stress"
+  - "assets/**/*"
 words:
   - pidgeon
   - modbus
@@ -48,3 +50,5 @@ words:
   - pyright
   - mdbook
   - justfile
+  - timespec
+  - levelname

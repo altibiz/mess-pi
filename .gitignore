@@ -196,3 +196,4 @@ nohup.out
 artifacts
 docs/**/book
 mdbook-plantuml-img/
+.gns3_perms

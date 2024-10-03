@@ -2,8 +2,8 @@ use std::net::IpAddr;
 
 use chrono::{DateTime, Utc};
 use sqlx::{
-  migrate::Migrator, types::ipnetwork::IpNetwork, FromRow, Pool, Postgres,
-  QueryBuilder, Type,
+  migrate::Migrator, types::ipnetwork::IpNetwork, ConnectOptions, FromRow,
+  Pool, Postgres, QueryBuilder, Type,
 };
 use thiserror::Error;
 
@@ -97,6 +97,10 @@ impl service::Service for Service {
       .host(&config.db.domain)
       .username(&config.db.user)
       .database(&config.db.name)
+      .log_slow_statements(
+        log::LevelFilter::Warn,
+        core::time::Duration::from_secs(5),
+      )
       .options([(
         "statement_timeout",
         &config.db.timeout.num_milliseconds().to_string(),
@@ -124,7 +128,19 @@ impl service::Service for Service {
 impl Service {
   #[tracing::instrument(skip(self))]
   pub(crate) async fn migrate(&self) -> Result<(), MigrateError> {
-    MIGRATOR.run(&self.pool).await?;
+    let mut migration_result = MIGRATOR.run(&self.pool).await;
+    let mut migration_retries = 0usize;
+    while matches!(migration_result, Err(_)) && migration_retries < 100 {
+      migration_result = MIGRATOR.run(&self.pool).await;
+      migration_retries = {
+        #[allow(clippy::unwrap_used)] // NOTE: it will never pass 100
+        let migration_retries = migration_retries.checked_add(1usize).unwrap();
+        migration_retries
+      };
+      tracing::warn!("Migration unsuccsessful - retrying in 1 second...");
+      tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+    }
+    migration_result?;
 
     tracing::info!("Migration ran successfully");
 

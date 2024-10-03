@@ -1,8 +1,7 @@
 import struct
 import asyncio
-from typing import Any, Callable, Coroutine, Optional, TypeVar, Union, List, cast
+from typing import Callable, Optional, TypeVar, Union, List
 from pymodbus.client import AsyncModbusTcpClient
-from pymodbus.pdu import ModbusResponse
 
 TRead = TypeVar("TRead")
 
@@ -13,9 +12,11 @@ class Client:
     self,
     ip_address: str,
     slave_id: int,
+    port: int,
   ):
     self.__ip_address = ip_address
     self.__slave_id = slave_id
+    self.__port = port
     self.__modbus_connected = False
     self.__modbus_client = self.__create_client()
 
@@ -28,55 +29,52 @@ class Client:
     self.__modbus_client = self.__create_client()
 
   def __create_client(self):
-    return AsyncModbusTcpClient(host=self.__ip_address,
-                                port=502,
-                                retries=0,
-                                timeout=0.1,
-                                retry_on_empty=False)
+    return AsyncModbusTcpClient(
+      host=self.__ip_address,
+      port=self.__port,
+      retries=0,
+      timeout=0.1,
+      retry_on_empty=False,
+    )
 
   async def read(
     self,
     register: int,
     count: int,
     convert: Callable[..., TRead],
-  ) -> TRead:
+  ) -> tuple[list[int], TRead]:
     while True:
       if not self.__modbus_connected:
         try:
           await self.__modbus_client.connect()
           self.__modbus_connected = True
-        except Exception as exception:
-          print(exception)
+        except Exception:
           await asyncio.sleep(1)
           continue
 
       registers: Optional[List[int]] = None
       try:
-        response = await cast(
-          Coroutine[Any, Any, ModbusResponse],
-          asyncio.wait_for(self.__modbus_client.read_holding_registers(
+        response = await asyncio.wait_for(
+          self.__modbus_client.read_holding_registers(
             address=register,
             count=count,
             slave=self.__slave_id,
           ),
-                           timeout=1))
+          timeout=1)
         if response.isError():
-          print(response)
           continue
 
         registers = response.registers  # pyright: ignore unknownMemberType
 
-      except Exception as exception:
-        print(exception)
+      except Exception:
         await asyncio.sleep(1)
         self.__reopen()
         continue
 
       try:
         value = convert(*registers)
-        return value
-      except Exception as exception:
-        print(exception)
+        return (registers, value)
+      except Exception:
         await asyncio.sleep(1)
         continue
 
@@ -90,27 +88,22 @@ class Client:
         try:
           await self.__modbus_client.connect()
           self.__modbus_connected = True
-        except Exception as exception:
-          print(exception)
+        except Exception:
           await asyncio.sleep(1)
           continue
 
       try:
-        response = await cast(
-          Coroutine[Any, Any, ModbusResponse],
-          asyncio.wait_for(self.__modbus_client.write_registers(
-            address=register,
-            values=values,
-            slave=self.__slave_id,
-          ),
-                           timeout=1))
+        response = await asyncio.wait_for(self.__modbus_client.write_registers(
+          address=register,
+          values=values,
+          slave=self.__slave_id,
+        ),
+                                          timeout=1)
         if response.isError():
-          print(response)
           await asyncio.sleep(1)
           break
 
-      except Exception as exception:
-        print(exception)
+      except Exception:
         await asyncio.sleep(1)
         self.__reopen()
         continue

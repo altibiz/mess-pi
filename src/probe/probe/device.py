@@ -4,15 +4,16 @@ from typing import Optional
 
 
 class DeviceType(Enum):
-  abb = 'abb'
-  schneider = 'schneider'
+  abb_b2x = 'abb-B2x'
+  schneider_iem3xxx = 'schneider-iEM3xxx'
 
   def __str__(self):
     return self.value
 
   @staticmethod
   def from_string(string: str) -> Optional[DeviceType]:
-    try:
-      return DeviceType[string]
-    except KeyError:
-      return None
+    for member in DeviceType:
+      if member.value == string:
+        return member
+
+    return None

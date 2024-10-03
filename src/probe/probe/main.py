@@ -1,258 +1,114 @@
 import asyncio
 import time
-from typing import Any, List, NamedTuple, Callable, Union
-from client import Client
-from args import Args
-from device import DeviceType
+import json
+from signal import SIGINT, SIGTERM
+from typing import Any, List, Union
+from probe.log import log
+from probe.client import Client
+from probe.loader import Loader
+from probe.server import Server
+from probe.args import Args
+from probe.device import DeviceType
+from probe.request import abb_b2x_requests, schneider_iem3xxx_requests, ReadRequest, WriteRequest
 
 
-class ReadRequest(NamedTuple):
-  name: str
-  register: int
-  size: int
-  convert: Callable[..., Any]
+async def async_main(args: Args):
+  requests = None
+  device_type = args.device_type()
 
+  if device_type == DeviceType.abb_b2x:
+    requests = abb_b2x_requests
+  elif device_type == DeviceType.schneider_iem3xxx:
+    requests = schneider_iem3xxx_requests
+  else:
+    raise ValueError("Unknown device type")
 
-class WriteRequest(NamedTuple):
-  name: str
-  register: int
-  values: list[int]
+  if args.is_server():
+    loader = Loader(
+      device_type=device_type,
+      id=args.id(),
+      config=args.config(),
+      measurements=args.measurements(),
+    )
+    server = Server(
+      address=args.address(),
+      port=args.port(),
+      registers=loader.measurement_to_registers(next(iter(loader))),
+    )
 
+    async def update():
+      async for measurement in loader:
+        log.info((
+          "Setting registers from measurement:",
+          json.dumps(
+            measurement.values,
+            indent=2,
+          ),
+        ))
+        registers = loader.measurement_to_registers(measurement)
+        server.set_registers(registers)
 
-async def main():
-  args = Args()
+    server_task = asyncio.create_task(server.run())
+    update_task = asyncio.create_task(update())
 
-  client = Client(
-    ip_address=args.ip_address(),
-    slave_id=args.slave_id(),
-  )
+    await asyncio.gather(
+      server_task,
+      update_task,
+    )
 
-  if args.device_type() == DeviceType.abb:
+  if args.is_client():
+    client = Client(
+      ip_address=args.address(),
+      slave_id=args.slave_id(),
+      port=args.port(),
+    )
     while True:
-      await execute(
+      await execute_client_requests(
         client,
-        DeviceType.abb,
-        [
-          ReadRequest(
-            name="Type designation",
-            register=0x8960,
-            size=6,
-            convert=Client.to_ascii,
-          ),
-          ReadRequest(
-            name="Serial number",
-            register=0x8900,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Active power",
-            register=0x5B14,
-            size=2,
-            convert=Client.to_sint32,
-          ),
-          ReadRequest(
-            name="Active power export L1",
-            register=0x546C,
-            size=4,
-            convert=Client.to_hex,
-          ),
-          ReadRequest(
-            name="Reactive Power",
-            register=0x5B1C,
-            size=2,
-            convert=Client.to_hex,
-          ),
-          ReadRequest(
-            name="Reactive Import",
-            register=0x500C,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Reactive Export",
-            register=0x5010,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Reactive Net",
-            register=0x5014,
-            size=2,
-            convert=Client.to_sint32,
-          ),
-          ReadRequest(
-            name="Active Import",
-            register=0x5000,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Active Export",
-            register=0x5004,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Active Net",
-            register=0x5008,
-            size=2,
-            convert=Client.to_sint32,
-          ),
-          # WriteRequest(
-          #   name="Tariff configuration", register=0x8C90, values=[0x0001]),
-          # WriteRequest(name="Tariff daily", register=0x8A07, values=[0x0001]),
-          # ReadRequest(
-          #   name="Tariff configuration",
-          #   register=0x8C90,
-          #   size=1,
-          #   convert=Client.to_hex,
-          # ),
-          # ReadRequest(
-          #   name="Tariff",
-          #   register=0x8A07,
-          #   size=1,
-          #   convert=Client.to_hex,
-          # ),
-          # WriteRequest(
-          #   name="Tariff configuration", register=0x8C90, values=[0x0001]),
-          # WriteRequest(name="Tariff nightly", register=0x8A07, values=[0x0002]),
-          ReadRequest(
-            name="Tariff configuration",
-            register=0x8C90,
-            size=1,
-            convert=Client.to_hex,
-          ),
-          ReadRequest(
-            name="Tariff",
-            register=0x8A07,
-            size=1,
-            convert=Client.to_hex,
-          ),
-        ])
-
-  if args.device_type() == DeviceType.schneider:
-    while True:
-      await execute(
-        client,
-        DeviceType.schneider,
-        [
-          ReadRequest(
-            name="Model",
-            register=0x0031,
-            size=20,
-            convert=Client.to_utf8,
-          ),
-          ReadRequest(
-            name="Serial number",
-            register=0x0081,
-            size=2,
-            convert=Client.to_uint32,
-          ),
-          ReadRequest(
-            name="Active Power",
-            register=0x0BF3,
-            size=2,
-            convert=Client.to_float32,
-          ),
-          ReadRequest(
-            name="Active energy import total",
-            register=0x0C83,
-            size=4,
-            convert=Client.to_sint64,
-          ),
-          ReadRequest(
-            name="Active energy import L1",
-            register=0x0DBD,
-            size=4,
-            convert=Client.to_sint64,
-          ),
-          ReadRequest(
-            name="Active energy import L2",
-            register=0x0DC1,
-            size=4,
-            convert=Client.to_sint64,
-          ),
-          ReadRequest(
-            name="Active energy import L3",
-            register=0x0DC5,
-            size=4,
-            convert=Client.to_sint64,
-          ),
-          # WriteRequest(name="Tariff configuration",
-          #              register=5249,
-          #              values=[2060, 0x0000, 0x0001]),
-          # ReadRequest(
-          #   name="Tariff configuration write result",
-          #   register=5374,
-          #   size=2,
-          #   convert=Client.to_registers,
-          # ),
-          # WriteRequest(
-          #   name="Tariff daily", register=5249, values=[2008, 0x0000, 0x0001]),
-          # ReadRequest(
-          #   name="Tariff write result",
-          #   register=5374,
-          #   size=2,
-          #   convert=Client.to_registers,
-          # ),
-          # ReadRequest(
-          #   name="Tariff",
-          #   register=0x105E,
-          #   size=1,
-          #   convert=Client.to_hex,
-          # ),
-          # WriteRequest(name="Tariff configuration",
-          #              register=5249,
-          #              values=[2060, 0x0000, 0x0001]),
-          # ReadRequest(
-          #   name="Tariff configuration write result",
-          #   register=5374,
-          #   size=2,
-          #   convert=Client.to_registers,
-          # ),
-          # WriteRequest(
-          #   name="Tariff nightly", register=5249, values=[2008, 0x0000, 0x0002]),
-          # ReadRequest(
-          #   name="Tariff write result",
-          #   register=5374,
-          #   size=2,
-          #   convert=Client.to_registers,
-          # ),
-          ReadRequest(
-            name="Tariff",
-            register=0x105E,
-            size=1,
-            convert=Client.to_hex,
-          ),
-        ])
+        device_type,
+        requests,
+      )
 
 
-async def execute(client: Client, device_type: DeviceType,
-                  requests: List[Union[ReadRequest, WriteRequest]]):
-  print("Executing requests for", device_type)
+async def execute_client_requests(
+  client: Client,
+  device_type: DeviceType,
+  requests: List[Union[ReadRequest, WriteRequest]],
+):
+  log.info(("Executing requests for", device_type))
   start = time.time()
   for request in requests:
     if isinstance(request, ReadRequest):
-      value = await client.read(
+      (registers, value) = await client.read(
         register=request.register,
         count=request.size,
         convert=request.convert,
       )
-      print("Read", request.name, value)
+      log.info((
+        "Read",
+        request.name,
+        request.register,
+        registers,
+        value,
+      ))
     else:
       await client.write(register=request.register, values=request.values)
-      print("Wrote", request.name)
+      log.info((
+        "Wrote",
+        request.name,
+        request.register,
+        request.values,
+      ))
   end = time.time()
-  print("took", end - start, "\n")
+  log.info(("Took", end - start, "\n"))
 
 
-if __name__ == "__main__":
-  from signal import SIGINT, SIGTERM
+def main():
+  args = Args()
 
-  async def wrapper():
+  async def wrapper(args: Args):
     try:
-      await main()
+      await async_main(args)
     except asyncio.CancelledError:
       pass
 
@@ -263,11 +119,17 @@ if __name__ == "__main__":
     pass
 
   loop = asyncio.get_event_loop()
-  main_task = asyncio.ensure_future(wrapper())
   loop.set_exception_handler(exception_handler)
+
+  main_task = asyncio.ensure_future(wrapper(args))
   for signal in [SIGINT, SIGTERM]:
     loop.add_signal_handler(signal, main_task.cancel)
+
   try:
     loop.run_until_complete(main_task)
   finally:
     loop.close()
+
+
+if __name__ == "__main__":
+  main()

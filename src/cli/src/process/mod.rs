@@ -155,7 +155,7 @@ impl Container {
     run_add_job!(self, config, scheduler, poll);
     run_add_job!(self, config, scheduler, discover);
     run_add_job!(self, config, scheduler, ping);
-    add_job!(self, config, scheduler, measure);
+    run_add_job!(self, config, scheduler, measure);
     add_job!(self, config, scheduler, push);
     add_job!(self, config, scheduler, update);
     add_job!(self, config, scheduler, health);

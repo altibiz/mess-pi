@@ -305,10 +305,13 @@ pub(crate) fn make_ip_range(start: String, end: String) -> ipnet::IpAddrRange {
   let (start, end) = match (start.parse(), end.parse()) {
     (Ok(start), Ok(end)) => (start, end),
     #[allow(clippy::unwrap_used)] // NOTE: valid ipv4 addresses
-    _ => (
-      "192.168.1.0".parse().unwrap(),
-      "192.168.1.255".parse().unwrap(),
-    ),
+    err => {
+      tracing::warn!("Invalid IP addresses {:?}", err);
+      (
+        "192.168.1.0".parse().unwrap(),
+        "192.168.1.255".parse().unwrap(),
+      )
+    }
   };
 
   ipnet::IpAddrRange::from(ipnet::Ipv4AddrRange::new(start, end))

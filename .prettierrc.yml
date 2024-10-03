@@ -4,3 +4,7 @@ useTabs: false
 trailingComma: all
 endOfLine: lf
 proseWrap: always
+overrides:
+  - files: "*.gns3"
+    options:
+      parser: json

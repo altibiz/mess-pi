@@ -1,6 +1,6 @@
 use std::net::SocketAddr;
 
-use futures::future::{join_all, select_all};
+use futures::future::join_all;
 use futures_time::future::FutureExt;
 
 #[allow(unused_imports)]
@@ -105,7 +105,7 @@ impl Process {
     config: &config::Values,
     destination: modbus::Destination,
   ) -> Option<DeviceMatch> {
-    let device = select_all(config.modbus.devices.values().map(|device| {
+    let device = join_all(config.modbus.devices.values().map(|device| {
       Box::pin(
         self
           .match_device(device.clone(), destination)
@@ -113,9 +113,9 @@ impl Process {
       )
     }))
     .await
-    .0
-    .ok()
-    .flatten()?;
+    .into_iter()
+    .find(|device| device.as_ref().ok().is_some_and(|x| x.is_some()))?
+    .ok()??;
 
     let device_match = self
       .match_id(device, destination)

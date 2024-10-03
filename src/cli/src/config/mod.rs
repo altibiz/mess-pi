@@ -25,6 +25,7 @@ pub(crate) struct Db {
 pub(crate) struct Network {
   pub(crate) timeout: chrono::Duration,
   pub(crate) ip_range: IpAddrRange,
+  pub(crate) modbus_port: u16,
 }
 
 #[derive(Debug, Clone)]
@@ -174,29 +175,28 @@ impl Manager {
 
   fn parse(config: Unparsed) -> Values {
     Values {
-      log_level: config.from_file.log_level.map_or_else(
-        || {
-          if config.from_args.trace {
-            tracing::level_filters::LevelFilter::TRACE
-          } else {
-            #[cfg(debug_assertions)]
-            {
-              tracing::level_filters::LevelFilter::DEBUG
-            }
-            #[cfg(not(debug_assertions))]
-            {
-              tracing::level_filters::LevelFilter::INFO
-            }
-          }
-        },
-        |log_level| match log_level {
+      log_level: if config.from_args.trace {
+        tracing::level_filters::LevelFilter::TRACE
+      } else if config.from_args.debug {
+        tracing::level_filters::LevelFilter::DEBUG
+      } else if let Some(log_level) = config.from_file.log_level {
+        match log_level {
           file::LogLevel::Trace => tracing::level_filters::LevelFilter::TRACE,
           file::LogLevel::Debug => tracing::level_filters::LevelFilter::DEBUG,
           file::LogLevel::Info => tracing::level_filters::LevelFilter::INFO,
           file::LogLevel::Warn => tracing::level_filters::LevelFilter::WARN,
           file::LogLevel::Error => tracing::level_filters::LevelFilter::ERROR,
-        },
-      ),
+        }
+      } else {
+        #[cfg(debug_assertions)]
+        {
+          tracing::level_filters::LevelFilter::DEBUG
+        }
+        #[cfg(not(debug_assertions))]
+        {
+          tracing::level_filters::LevelFilter::INFO
+        }
+      },
       schedule: Schedule {
         discover: file::string_to_cron(
           &config.from_file.schedule.discover,
@@ -247,7 +247,7 @@ impl Manager {
         timeout: file::milliseconds_to_chrono(
           config.from_file.cloud.timeout.unwrap_or(30000),
         ),
-        message_limit: config.from_file.cloud.message_limit.unwrap_or(1000),
+        message_limit: config.from_file.cloud.message_limit.unwrap_or(50000),
         ssl: config.from_env.cloud.ssl,
         domain: config.from_env.cloud.domain,
         api_key: config.from_env.cloud.api_key,
@@ -265,7 +265,7 @@ impl Manager {
       },
       db: Db {
         timeout: file::milliseconds_to_chrono(
-          config.from_file.db.timeout.unwrap_or(30000),
+          config.from_file.db.timeout.unwrap_or(30_000),
         ),
         ssl: config.from_env.db.ssl,
         domain: config.from_env.db.domain,
@@ -280,12 +280,13 @@ impl Manager {
       },
       network: Network {
         timeout: file::milliseconds_to_chrono(
-          config.from_file.network.timeout.unwrap_or(5_000),
+          config.from_file.network.timeout.unwrap_or(30_000),
         ),
         ip_range: file::make_ip_range(
           config.from_env.network.ip_range_start,
           config.from_env.network.ip_range_end,
         ),
+        modbus_port: config.from_env.network.modbus_port,
       },
       modbus: Modbus {
         read_timeout: file::milliseconds_to_chrono(
@@ -300,7 +301,7 @@ impl Manager {
             .unwrap_or(10_000),
         ),
         congestion_backoff: file::milliseconds_to_chrono(
-          config.from_file.modbus.termination_timeout.unwrap_or(50),
+          config.from_file.modbus.congestion_backoff.unwrap_or(50),
         ),
         partial_retries: config.from_file.modbus.partial_retries.unwrap_or(10),
         ping_timeout: file::milliseconds_to_chrono(
@@ -317,7 +318,7 @@ impl Manager {
             .unwrap_or(5 * 60 * 1000),
         ),
         discovery_timeout: file::milliseconds_to_chrono(
-          config.from_file.modbus.discovery_timeout.unwrap_or(5_000),
+          config.from_file.modbus.discovery_timeout.unwrap_or(30_000),
         ),
         devices: config
           .from_file
